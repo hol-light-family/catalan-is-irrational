@@ -1,0 +1,501 @@
+(* ========================================================================= *)
+(* fin_dig_c: Catalan numbers c_l = binom(2l,l)/4^l modulo an odd prime p:   *)
+(* E_d congruences, the square sum, and the digit (carry / no-carry) laws.   *)
+(* ========================================================================= *)
+
+needs "src/catalan_fin_dig_base.ml";;
+
+prioritize_real();;
+
+let FIN_DIG_C_ODD = prove
+ (`forall p. prime p /\ ~(p = 2) ==> exists s. p = 2 * s + 1`,
+  REPEAT STRIP_TAC THEN MP_TAC(SPEC `p:num` PRIME_ODD) THEN
+  ASM_REWRITE_TAC[ODD_EXISTS] THEN STRIP_TAC THEN EXISTS_TAC `m:num` THEN
+  ASM_REWRITE_TAC[] THEN ARITH_TAC);;
+
+let FIN_DIG_C_S = prove
+ (`forall s. ((2 * s + 1) - 1) DIV 2 = s /\ (2 * s + 1) - 1 = 2 * s`,
+  REWRITE_TAC[ARITH_RULE `(2 * s + 1) - 1 = 2 * s:num`] THEN
+  SIMP_TAC[DIV_MULT; ARITH_EQ]);;
+
+let FIN_DIG_C_NDIV4 = prove
+ (`forall p l. prime p /\ ~(p = 2) ==> ~(p divides 4 EXP l)`,
+  REPEAT STRIP_TAC THEN
+  SUBGOAL_THEN `p divides 2` MP_TAC THENL
+   [MATCH_MP_TAC PRIME_DIVEXP THEN EXISTS_TAC `2 * l` THEN
+    ASM_REWRITE_TAC[EXP_MULT] THEN CONV_TAC NUM_REDUCE_CONV THEN ASM_REWRITE_TAC[];
+    DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN
+    FIRST_ASSUM(MP_TAC o MATCH_MP PRIME_GE_2) THEN ASM_ARITH_TAC]);;
+
+let FIN_DIG_E_INTEGER = prove
+ (`forall p d. integer (fin_E p d)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[fin_E] THEN COND_CASES_TAC THEN
+  SIMP_TAC[INTEGER_CLOSED]);;
+
+let FIN_DIG_C_ZP = prove
+ (`forall p l. prime p /\ ~(p = 2) ==> fin_zp p (cat_c l)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[cat_c; REAL_OF_NUM_POW] THEN
+  MATCH_MP_TAC FIN_ZP_DIV_NUM THEN ASM_SIMP_TAC[FIN_ZP_NUM; FIN_DIG_C_NDIV4]);;
+
+let FIN_DIG_C_UNIT = prove
+ (`forall p l. prime p /\ ~(p = 2) /\ 2 * l < p ==> fin_dig_unit p (cat_c l)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[cat_c; REAL_OF_NUM_POW] THEN
+  MATCH_MP_TAC FIN_DIG_UNIT_DIV THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THEN
+  MATCH_MP_TAC FIN_DIG_UNIT_NUM THEN ASM_SIMP_TAC[FIN_DIG_C_NDIV4] THEN
+  DISCH_TAC THEN
+  SUBGOAL_THEN `p divides FACT(2 * l)` MP_TAC THENL
+   [MP_TAC(SPECL [`l:num`; `l:num`] BINOM_FACT) THEN
+    REWRITE_TAC[GSYM MULT_2] THEN DISCH_THEN(SUBST1_TAC o SYM) THEN
+    ASM_SIMP_TAC[DIVIDES_LMUL];
+    ASM_SIMP_TAC[DIVIDES_FACT_PRIME] THEN ASM_ARITH_TAC]);;
+
+let FIN_DIG_C_REC0 = prove
+ (`forall l. &(2 * l + 2) * cat_c (l + 1) = &(2 * l + 1) * cat_c l`,
+  GEN_TAC THEN REWRITE_TAC[cat_c] THEN
+  SUBGOAL_THEN `2 * (l + 1) = (2 * l + 1) + 1` SUBST1_TAC THENL
+   [ARITH_TAC; ALL_TAC] THEN
+  REWRITE_TAC[BINOM_BOTH_STEP_REAL; BINOM_TOP_STEP_REAL;
+              ARITH_RULE `~(l = 2 * l + 1:num)`] THEN
+  REWRITE_TAC[REAL_POW_ADD; REAL_POW_1; GSYM REAL_OF_NUM_ADD;
+              GSYM REAL_OF_NUM_MUL] THEN
+  SUBGOAL_THEN `~(&4 pow l = &0) /\ ~(&l + &1 = &0) /\ ~(&2 * &l + &1 - &l = &0)`
+  MP_TAC THENL
+   [REWRITE_TAC[REAL_POW_EQ_0] THEN REAL_ARITH_TAC; CONV_TAC REAL_FIELD]);;
+
+
+let FIN_DIG_E_CG0 = prove
+ (`forall s k. prime(2 * s + 1) /\ k <= s
+         ==> fin_dig_cg (2 * s + 1) ((--(&1)) pow k * &(binom(s,k))) (cat_c k)`,
+  GEN_TAC THEN INDUCT_TAC THENL
+   [REWRITE_TAC[real_pow; binom; cat_c; MULT_CLAUSES; REAL_MUL_LID; REAL_DIV_1] THEN
+    SIMP_TAC[FIN_DIG_CG_REFL; FIN_ZP_1];
+    ALL_TAC] THEN
+  REPEAT STRIP_TAC THEN FIRST_X_ASSUM(MP_TAC o check (is_imp o concl)) THEN
+  ANTS_TAC THENL [ASM_REWRITE_TAC[] THEN ASM_ARITH_TAC; DISCH_TAC] THEN
+  SUBGOAL_THEN `(--(&1)) pow (SUC k) * &(binom(s,SUC k)) =
+                ((--(&1)) pow k * &(binom(s,k))) * (--(&s - &k) / &(k + 1))`
+  SUBST1_TAC THENL
+   [REWRITE_TAC[ADD1; BINOM_BOTTOM_STEP_REAL; REAL_POW_ADD; REAL_POW_1] THEN
+    REWRITE_TAC[GSYM REAL_OF_NUM_ADD] THEN
+    SUBGOAL_THEN `~(&k + &1 = &0)` MP_TAC THENL
+     [REAL_ARITH_TAC; CONV_TAC REAL_FIELD];
+    ALL_TAC] THEN
+  SUBGOAL_THEN `cat_c (SUC k) = cat_c k * ((&(2 * k + 1) / &2) / &(k + 1))`
+  SUBST1_TAC THENL
+   [MP_TAC(SPEC `k:num` FIN_DIG_C_REC0) THEN
+    REWRITE_TAC[ADD1; GSYM REAL_OF_NUM_ADD; GSYM REAL_OF_NUM_MUL] THEN
+    SUBGOAL_THEN `~(&k + &1 = &0)` MP_TAC THENL
+     [REAL_ARITH_TAC; CONV_TAC REAL_FIELD];
+    ALL_TAC] THEN
+  MATCH_MP_TAC FIN_DIG_CG_MUL THEN ASM_REWRITE_TAC[] THEN
+  MATCH_MP_TAC FIN_DIG_CG_DIV_NUM THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+   [ALL_TAC;
+    DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN ASM_ARITH_TAC] THEN
+  REWRITE_TAC[fin_dig_cg] THEN REPEAT CONJ_TAC THENL
+   [MATCH_MP_TAC FIN_ZP_INTEGER THEN ASM_SIMP_TAC[INTEGER_CLOSED];
+    MATCH_MP_TAC FIN_ZP_DIV_NUM THEN ASM_SIMP_TAC[FIN_ZP_NUM] THEN
+    DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN ASM_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN `--(&s - &k) - &(2 * k + 1) / &2 = &(2 * s + 1) * --(&1 / &2)`
+  SUBST1_TAC THENL
+   [REWRITE_TAC[GSYM REAL_OF_NUM_ADD; GSYM REAL_OF_NUM_MUL] THEN REAL_ARITH_TAC;
+    ALL_TAC] THEN
+  MP_TAC(ISPECL [`2 * s + 1`; `&0`; `--(&1 / &2)`] FIN_VGE_PMUL) THEN
+  ASM_SIMP_TAC[REAL_ADD_LID; FIN_VGE_ZP] THEN DISCH_THEN(K ALL_TAC) THEN
+  MATCH_MP_TAC FIN_ZP_NEG THEN MATCH_MP_TAC FIN_ZP_DIV_NUM THEN
+  ASM_SIMP_TAC[FIN_ZP_1] THEN
+  DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN ASM_ARITH_TAC);;
+
+let FIN_DIG_E_CG = prove
+ (`forall p d. prime p /\ ~(p = 2) /\ EVEN d /\ d < p
+         ==> fin_dig_cg p (fin_E p d) (cat_c (d DIV 2))`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPEC `p:num` FIN_DIG_C_ODD) THEN ASM_REWRITE_TAC[] THEN
+  DISCH_THEN(X_CHOOSE_THEN `s:num` SUBST_ALL_TAC) THEN
+  FIRST_X_ASSUM(X_CHOOSE_THEN `k:num` SUBST_ALL_TAC o REWRITE_RULE[EVEN_EXISTS]) THEN
+  ASM_REWRITE_TAC[fin_E; FIN_DIG_C_S; EVEN_DOUBLE] THEN
+  SIMP_TAC[DIV_MULT; ARITH_EQ] THEN MATCH_MP_TAC FIN_DIG_E_CG0 THEN
+  ASM_REWRITE_TAC[] THEN ASM_ARITH_TAC);;
+
+let FIN_DIG_C_HALF = prove
+ (`forall p. prime p /\ ~(p = 2)
+       ==> fin_dig_cg p (cat_c ((p - 1) DIV 2)) ((--(&1)) pow ((p - 1) DIV 2))`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPECL [`p:num`; `p - 1`] FIN_DIG_E_CG) THEN ASM_REWRITE_TAC[] THEN
+  MP_TAC(SPEC `p:num` FIN_DIG_C_ODD) THEN ASM_REWRITE_TAC[] THEN
+  DISCH_THEN(X_CHOOSE_THEN `s:num` SUBST_ALL_TAC) THEN
+  REWRITE_TAC[FIN_DIG_C_S; EVEN_DOUBLE; ARITH_RULE `2 * s < 2 * s + 1:num`] THEN
+  REWRITE_TAC[fin_E; FIN_DIG_C_S; EVEN_DOUBLE; ARITH_RULE `2 * s < 2 * s + 1:num`] THEN
+  SIMP_TAC[DIV_MULT; ARITH_EQ; BINOM_REFL; REAL_MUL_RID; FIN_DIG_CG_SYM]);;
+
+let FIN_DIG_E_REFL = prove
+ (`forall p d. prime p /\ ~(p = 2) /\ d < p
+         ==> fin_E p ((p - 1) - d) = (--(&1)) pow ((p - 1) DIV 2) * fin_E p d`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPEC `p:num` FIN_DIG_C_ODD) THEN ASM_REWRITE_TAC[] THEN
+  DISCH_THEN(X_CHOOSE_THEN `s:num` SUBST_ALL_TAC) THEN
+  REWRITE_TAC[FIN_DIG_C_S] THEN
+  ASM_CASES_TAC `EVEN d` THENL
+   [FIRST_X_ASSUM(X_CHOOSE_THEN `k:num` SUBST_ALL_TAC o REWRITE_RULE[EVEN_EXISTS]) THEN
+    SUBGOAL_THEN `exists m. s = k + m:num` (X_CHOOSE_THEN `m:num` SUBST_ALL_TAC) THENL
+     [REWRITE_TAC[GSYM LE_EXISTS] THEN ASM_ARITH_TAC; ALL_TAC] THEN
+    REWRITE_TAC[ARITH_RULE `2 * (k + m) - 2 * k = 2 * m:num`] THEN
+    REWRITE_TAC[fin_E; FIN_DIG_C_S; EVEN_DOUBLE] THEN
+    ASM_REWRITE_TAC[ARITH_RULE `2 * m < 2 * (k + m) + 1:num`] THEN
+    SIMP_TAC[DIV_MULT; ARITH_EQ] THEN
+    SUBGOAL_THEN `binom(k + m,m) = binom(k + m,k)` SUBST1_TAC THENL
+     [MP_TAC(SPECL [`k + m:num`; `k:num`] BINOM_SYM) THEN
+      REWRITE_TAC[ADD_SUB2; LE_ADD];
+      ALL_TAC] THEN
+    SUBGOAL_THEN `(--(&1)) pow k * (--(&1)) pow k = &1` MP_TAC THENL
+     [REWRITE_TAC[GSYM REAL_POW_MUL] THEN
+      REWRITE_TAC[REAL_ARITH `--(&1) * --(&1) = &1`; REAL_POW_ONE];
+      REWRITE_TAC[REAL_POW_ADD] THEN CONV_TAC REAL_RING];
+    ALL_TAC] THEN
+  SUBGOAL_THEN `~EVEN(2 * s - d)` ASSUME_TAC THENL
+   [REWRITE_TAC[EVEN_SUB; EVEN_MULT; ARITH_EVEN] THEN ASM_REWRITE_TAC[] THEN
+    DISCH_TAC THEN SUBGOAL_THEN `d = 2 * s` SUBST_ALL_TAC THENL
+     [ASM_ARITH_TAC; ASM_MESON_TAC[EVEN_DOUBLE]];
+    ASM_REWRITE_TAC[fin_E; REAL_MUL_RZERO]]);;
+
+let FIN_DIG_C_SPLIT = prove
+ (`forall f k. sum(0..SUC k) f = f 0 + sum(0..k) (\i. f(i + 1))`,
+  REPEAT GEN_TAC THEN
+  SIMP_TAC[SPECL [`f:num->real`; `0`; `SUC k`] SUM_CLAUSES_LEFT; LE_0] THEN AP_TERM_TAC THEN
+  REWRITE_TAC[GSYM SUM_OFFSET] THEN REWRITE_TAC[ADD1; ADD_CLAUSES]);;
+
+let FIN_DIG_C_VDM = prove
+ (`forall m n k. &(binom(m + n,k)) =
+           sum(0..k) (\j. &(binom(m,j)) * &(binom(n,k - j)))`,
+  INDUCT_TAC THENL
+   [REPEAT GEN_TAC THEN REWRITE_TAC[ADD_CLAUSES] THEN
+    SIMP_TAC[SUM_CLAUSES_LEFT; LE_0] THEN
+    REWRITE_TAC[binom; SUB_0; REAL_MUL_LID] THEN
+    MATCH_MP_TAC(REAL_ARITH `s = &0 ==> b = b + s`) THEN
+    MATCH_MP_TAC SUM_EQ_0_NUMSEG THEN X_GEN_TAC `i:num` THEN STRIP_TAC THEN
+    SUBGOAL_THEN `binom(0,i) = 0` (fun th -> REWRITE_TAC[th; REAL_MUL_LZERO]) THEN
+    MATCH_MP_TAC BINOM_LT THEN ASM_ARITH_TAC;
+    ALL_TAC] THEN
+  GEN_TAC THEN INDUCT_TAC THENL
+   [REWRITE_TAC[binom; SUM_SING_NUMSEG; SUB_0; REAL_MUL_LID]; POP_ASSUM(K ALL_TAC)] THEN
+  REWRITE_TAC[ADD_CLAUSES; binom; GSYM REAL_OF_NUM_ADD] THEN
+  ASM_REWRITE_TAC[] THEN REWRITE_TAC[FIN_DIG_C_SPLIT] THEN
+  REWRITE_TAC[GSYM ADD1; SUB_SUC; SUB_0; binom; GSYM REAL_OF_NUM_ADD;
+              REAL_ADD_RDISTRIB; SUM_ADD_NUMSEG; REAL_MUL_LID] THEN
+  MATCH_MP_TAC(REAL_ARITH `c = c' ==> (a + b) + c = a + b + c'`) THEN
+  REFL_TAC);;
+
+let FIN_DIG_C_BSQ = prove
+ (`forall s. sum(0..s) (\j. &(binom(s,j)) pow 2) = &(binom(2 * s,s))`,
+  GEN_TAC THEN REWRITE_TAC[MULT_2; FIN_DIG_C_VDM] THEN
+  MATCH_MP_TAC SUM_EQ_NUMSEG THEN X_GEN_TAC `j:num` THEN STRIP_TAC THEN
+  ASM_SIMP_TAC[REAL_POW_2; BINOM_SYM]);;
+
+let FIN_DIG_C_FERMAT4 = prove
+ (`forall p n. prime p /\ ~(p = 2) ==> (4 EXP (n * p) == 4 EXP n) (mod p)`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPECL [`4 EXP n`; `p:num`] FERMAT_LITTLE_PRIME) THEN
+  ANTS_TAC THENL
+   [ASM_REWRITE_TAC[] THEN ONCE_REWRITE_TAC[COPRIME_SYM] THEN
+    ASM_SIMP_TAC[PRIME_COPRIME_EQ; FIN_DIG_C_NDIV4];
+    ALL_TAC] THEN
+  SUBGOAL_THEN `4 EXP (n * p) = 4 EXP n * (4 EXP n) EXP (p - 1)` SUBST1_TAC THENL
+   [REWRITE_TAC[EXP_EXP; GSYM EXP_ADD] THEN AP_TERM_TAC THEN
+    FIRST_ASSUM(MP_TAC o MATCH_MP PRIME_GE_2) THEN DISCH_TAC THEN
+    SUBGOAL_THEN `exists q. p = q + 1:num` (CHOOSE_THEN SUBST1_TAC) THENL
+     [EXISTS_TAC `p - 1:num` THEN ASM_ARITH_TAC;
+      REWRITE_TAC[ADD_SUB] THEN CONV_TAC NUM_RING];
+    DISCH_TAC THEN MATCH_MP_TAC(NUMBER_RULE
+     `forall x a p:num. (a == 1) (mod p) ==> (x * a == x) (mod p)`) THEN
+    ASM_REWRITE_TAC[]]);;
+
+let FIN_DIG_C_FOUR2 = prove
+ (`forall p. prime p /\ ~(p = 2) ==> (4 EXP ((p - 1) DIV 2) == 1) (mod p)`,
+  REPEAT STRIP_TAC THEN
+  FIRST_ASSUM(ASSUME_TAC o MATCH_MP PRIME_GE_2) THEN
+  MP_TAC(SPEC `p:num` FIN_DIG_C_ODD) THEN ASM_REWRITE_TAC[] THEN
+  DISCH_THEN(X_CHOOSE_THEN `s:num` SUBST_ALL_TAC) THEN
+  MP_TAC(SPECL [`2`; `2 * s + 1`] FERMAT_LITTLE_PRIME) THEN
+  REWRITE_TAC[FIN_DIG_C_S] THEN ANTS_TAC THENL
+   [ASM_REWRITE_TAC[] THEN ONCE_REWRITE_TAC[COPRIME_SYM] THEN
+    ASM_SIMP_TAC[PRIME_COPRIME_EQ] THEN
+    DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN ASM_ARITH_TAC;
+    REWRITE_TAC[EXP_MULT] THEN CONV_TAC NUM_REDUCE_CONV]);;
+
+let FIN_DIG_C_SQSUM = prove
+ (`forall p. prime p /\ ~(p = 2)
+       ==> fin_dig_cg p (sum (0..(p - 1) DIV 2) (\j. cat_c j pow 2))
+                        ((--(&1)) pow ((p - 1) DIV 2))`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPEC `p:num` FIN_DIG_C_ODD) THEN ASM_REWRITE_TAC[] THEN
+  DISCH_THEN(X_CHOOSE_THEN `s:num` SUBST_ALL_TAC) THEN
+  REWRITE_TAC[FIN_DIG_C_S] THEN
+  MATCH_MP_TAC FIN_DIG_CG_TRANS THEN
+  EXISTS_TAC `sum (0..s) (\j. &(binom(s,j)) pow 2)` THEN
+  ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+   [MATCH_MP_TAC FIN_DIG_CG_SUM THEN ASM_REWRITE_TAC[FINITE_NUMSEG; IN_NUMSEG] THEN
+    X_GEN_TAC `j:num` THEN STRIP_TAC THEN
+    MATCH_MP_TAC FIN_DIG_CG_EQ THEN
+    EXISTS_TAC `cat_c j pow 2` THEN
+    EXISTS_TAC `((--(&1)) pow j * &(binom(s,j))) pow 2` THEN
+    REPEAT CONJ_TAC THENL
+     [MATCH_MP_TAC FIN_DIG_CG_POW THEN ASM_REWRITE_TAC[] THEN
+      MATCH_MP_TAC FIN_DIG_CG_SYM THEN MATCH_MP_TAC FIN_DIG_E_CG0 THEN
+      ASM_REWRITE_TAC[];
+      REWRITE_TAC[];
+      REWRITE_TAC[REAL_POW_MUL; REAL_POW_POW; REAL_POW_NEG; EVEN_MULT;
+                  ARITH_EVEN; REAL_POW_ONE; REAL_MUL_LID]];
+    ALL_TAC] THEN
+  REWRITE_TAC[FIN_DIG_C_BSQ] THEN
+  MATCH_MP_TAC FIN_DIG_CG_EQ THEN
+  EXISTS_TAC `&4 pow s * cat_c s` THEN EXISTS_TAC `&1 * (--(&1)) pow s` THEN
+  REPEAT CONJ_TAC THENL
+   [MATCH_MP_TAC FIN_DIG_CG_MUL THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+     [REWRITE_TAC[REAL_OF_NUM_POW] THEN MATCH_MP_TAC FIN_DIG_CG_NUM THEN
+      ASM_REWRITE_TAC[] THEN
+      MP_TAC(SPEC `2 * s + 1` FIN_DIG_C_FOUR2) THEN ASM_REWRITE_TAC[FIN_DIG_C_S];
+      MP_TAC(SPEC `2 * s + 1` FIN_DIG_C_HALF) THEN ASM_REWRITE_TAC[FIN_DIG_C_S]];
+    REWRITE_TAC[cat_c] THEN CONV_TAC SYM_CONV THEN MATCH_MP_TAC REAL_DIV_LMUL THEN
+    REWRITE_TAC[REAL_POW_EQ_0] THEN REAL_ARITH_TAC;
+    REWRITE_TAC[REAL_MUL_LID]]);;
+
+let fin_dig_c_u = define
+ `(forall p. (fin_dig_c_u:num->num->num) p 0 = 1) /\
+  (forall p n. fin_dig_c_u p (SUC n) =
+         (if p divides SUC n then 1 else SUC n) * fin_dig_c_u p n)`;;
+
+let FIN_DIG_C_U_NDIV = prove
+ (`forall p n. prime p ==> ~(p divides fin_dig_c_u p n)`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN SPEC_TAC(`n:num`,`n:num`) THEN INDUCT_TAC THEN REWRITE_TAC[fin_dig_c_u] THENL
+   [ASM_MESON_TAC[DIVIDES_ONE; PRIME_1]; ALL_TAC] THEN
+  COND_CASES_TAC THEN ASM_SIMP_TAC[PRIME_DIVPROD_EQ; DIVIDES_ONE] THEN
+  ASM_MESON_TAC[PRIME_1]);;
+
+let FIN_DIG_C_DIVSTEP = prove
+ (`forall p n. ~(p = 0)
+         ==> if p divides SUC n
+             then SUC n = p * (n DIV p + 1) /\ (SUC n) DIV p = n DIV p + 1 /\
+                  (SUC n) MOD p = 0 /\ n MOD p = p - 1
+             else (SUC n) DIV p = n DIV p /\ (SUC n) MOD p = n MOD p + 1`,
+  REPEAT STRIP_TAC THEN
+  MP_TAC(SPECL [`n:num`; `p:num`] DIVISION) THEN ASM_REWRITE_TAC[] THEN
+  ABBREV_TAC `q = n DIV p` THEN ABBREV_TAC `r = n MOD p` THEN STRIP_TAC THEN
+  COND_CASES_TAC THENL
+   [SUBGOAL_THEN `r + 1 = p` ASSUME_TAC THENL
+     [SUBGOAL_THEN `p divides r + 1` MP_TAC THENL
+       [MATCH_MP_TAC DIVIDES_ADD_REVR THEN EXISTS_TAC `q * p:num` THEN
+        CONJ_TAC THENL
+         [MATCH_MP_TAC DIVIDES_LMUL THEN REWRITE_TAC[DIVIDES_REFL];
+          UNDISCH_TAC `p divides SUC n` THEN ASM_REWRITE_TAC[ADD1; ADD_ASSOC]];
+        DISCH_THEN(MP_TAC o MATCH_MP DIVIDES_LE) THEN ASM_ARITH_TAC];
+      ALL_TAC] THEN
+    REPEAT CONJ_TAC THENL
+     [ASM_REWRITE_TAC[LEFT_ADD_DISTRIB; MULT_CLAUSES] THEN ASM_ARITH_TAC;
+      MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `0`;
+      MATCH_MP_TAC MOD_UNIQ THEN EXISTS_TAC `q + 1:num`;
+      ALL_TAC] THEN
+    ASM_REWRITE_TAC[RIGHT_ADD_DISTRIB; MULT_CLAUSES] THEN ASM_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN `~(r + 1 = p)` ASSUME_TAC THENL
+   [DISCH_TAC THEN UNDISCH_TAC `~(p divides SUC n)` THEN REWRITE_TAC[] THEN
+    SUBGOAL_THEN `SUC n = (q + 1) * p` SUBST1_TAC THENL
+     [ASM_REWRITE_TAC[RIGHT_ADD_DISTRIB; MULT_CLAUSES] THEN ASM_ARITH_TAC;
+      MESON_TAC[DIVIDES_LMUL; DIVIDES_REFL]];
+    ALL_TAC] THEN
+  CONJ_TAC THENL
+   [MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `r + 1:num`;
+    MATCH_MP_TAC MOD_UNIQ THEN EXISTS_TAC `q:num`] THEN
+  ASM_ARITH_TAC);;
+
+let FIN_DIG_C_FACT = prove
+ (`forall p n. ~(p = 0) ==> FACT n = p EXP (n DIV p) * FACT (n DIV p) * fin_dig_c_u p n`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN SPEC_TAC(`n:num`,`n:num`) THEN INDUCT_TAC THENL
+   [ASM_SIMP_TAC[DIV_0; FACT; EXP; fin_dig_c_u; MULT_CLAUSES]; ALL_TAC] THEN
+  MP_TAC(SPECL [`p:num`; `n:num`] FIN_DIG_C_DIVSTEP) THEN ASM_REWRITE_TAC[] THEN
+  REWRITE_TAC[fin_dig_c_u; FACT] THEN COND_CASES_TAC THENL
+   [DISCH_THEN(CONJUNCTS_THEN2 MP_TAC STRIP_ASSUME_TAC) THEN ASM_REWRITE_TAC[] THEN
+    DISCH_THEN SUBST1_TAC THEN REWRITE_TAC[GSYM ADD1; FACT; EXP] THEN
+    CONV_TAC NUM_RING;
+    STRIP_TAC THEN ASM_REWRITE_TAC[] THEN CONV_TAC NUM_RING]);;
+
+let FIN_DIG_C_UCONG = prove
+ (`forall p n. prime p
+         ==> (fin_dig_c_u p n == FACT(p - 1) EXP (n DIV p) * FACT(n MOD p)) (mod p)`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN
+  SUBGOAL_THEN `~(p = 0)` ASSUME_TAC THENL [ASM_MESON_TAC[PRIME_IMP_NZ]; ALL_TAC] THEN
+  SPEC_TAC(`n:num`,`n:num`) THEN INDUCT_TAC THENL
+   [ASM_SIMP_TAC[DIV_0; MOD_0; FACT; EXP; fin_dig_c_u; MULT_CLAUSES; CONG_REFL];
+    ALL_TAC] THEN
+  MP_TAC(SPECL [`p:num`; `n:num`] FIN_DIG_C_DIVSTEP) THEN ASM_REWRITE_TAC[] THEN
+  REWRITE_TAC[fin_dig_c_u] THEN COND_CASES_TAC THEN STRIP_TAC THEN
+  UNDISCH_TAC
+   `(fin_dig_c_u p n == FACT(p - 1) EXP (n DIV p) * FACT(n MOD p)) (mod p)` THENL
+   [ASM_REWRITE_TAC[EXP_ADD; EXP_1; FACT; MULT_CLAUSES];
+    ALL_TAC] THEN
+  ASM_REWRITE_TAC[] THEN
+  MP_TAC(SPECL [`n:num`; `p:num`] DIVISION) THEN ASM_REWRITE_TAC[] THEN
+  ABBREV_TAC `q = n DIV p` THEN ABBREV_TAC `r = n MOD p` THEN
+  DISCH_THEN(SUBST1_TAC o CONJUNCT1) THEN
+  REWRITE_TAC[GSYM ADD1; FACT] THEN REWRITE_TAC[ADD1] THEN
+  CONV_TAC NUMBER_RULE);;
+
+let FIN_DIG_C_DECOMP = prove
+ (`forall p l. prime p
+         ==> &(binom(2 * l,l)) *
+             (&(fin_dig_c_u p l) * &p pow (l DIV p) * &(FACT(l DIV p))) pow 2 =
+             &p pow ((2 * l) DIV p) * &(FACT((2 * l) DIV p)) *
+             &(fin_dig_c_u p (2 * l))`,
+  REPEAT STRIP_TAC THEN FIRST_ASSUM(ASSUME_TAC o MATCH_MP PRIME_IMP_NZ) THEN
+  MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_FACT) THEN
+  MP_TAC(SPECL [`p:num`; `2 * l:num`] FIN_DIG_C_FACT) THEN
+  MP_TAC(SPECL [`l:num`; `l:num`] BINOM_FACT) THEN
+  REWRITE_TAC[GSYM MULT_2] THEN ASM_REWRITE_TAC[] THEN
+  REWRITE_TAC[GSYM REAL_OF_NUM_EQ; GSYM REAL_OF_NUM_MUL; GSYM REAL_OF_NUM_POW] THEN
+  CONV_TAC REAL_RING);;
+
+let FIN_DIG_C_NZ = prove
+ (`forall p n. prime p
+         ==> ~(&(fin_dig_c_u p n) = &0) /\ ~(&(FACT n) = &0) /\
+             ~(&p pow n = &0) /\ ~(&4 pow n = &0) /\ ~(&p = &0)`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN
+  ASM_SIMP_TAC[REAL_OF_NUM_EQ; FACT_NZ; FIN_PPOW_NZ; REAL_POW_EQ_0; PRIME_IMP_NZ] THEN
+  CONJ_TAC THENL
+   [DISCH_TAC THEN MP_TAC(SPECL [`p:num`; `n:num`] FIN_DIG_C_U_NDIV) THEN
+    ASM_REWRITE_TAC[DIVIDES_0];
+    ARITH_TAC]);;
+
+let FIN_DIG_C_ALG1 = prove
+ (`forall B U1 P G G2 U2 b.
+        B * (U1 * P * G) pow 2 = (P * P) * G2 * U2
+        ==> (G * G * b = G2 /\ ~(U1 = &0) /\ ~(P = &0) /\ ~(G = &0))
+        ==> B = b * U2 / U1 pow 2`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN STRIP_TAC THEN
+  UNDISCH_TAC `B * (U1 * P * G) pow 2 = (P * P) * G2 * U2` THEN
+  FIRST_X_ASSUM(SUBST1_TAC o SYM) THEN
+  REPEAT(POP_ASSUM MP_TAC) THEN CONV_TAC REAL_FIELD);;
+
+let FIN_DIG_C_ALG3 = prove
+ (`forall f b f2 A. f * f * b = f2 ==> (~(A = &0) /\ ~(f = &0))
+              ==> b = ((A * A) * f2) / (A * f) pow 2`,
+  REPEAT GEN_TAC THEN DISCH_THEN(SUBST1_TAC o SYM) THEN CONV_TAC REAL_FIELD);;
+
+let FIN_DIG_C_ALG4 = prove
+ (`forall B U1 P G p G21 U2 x.
+        B * (U1 * P * G) pow 2 = (P * P * p) * G21 * U2
+        ==> (~(U1 = &0) /\ ~(P = &0) /\ ~(G = &0) /\ ~(p = &0) /\ ~(x = &0))
+        ==> B / x / p = (G21 * U2) / ((U1 * G) pow 2 * x)`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN STRIP_TAC THEN
+  SUBGOAL_THEN `B = ((P * P * p) * G21 * U2) / (U1 * P * G) pow 2` SUBST1_TAC THENL
+   [UNDISCH_TAC `B * (U1 * P * G) pow 2 = (P * P * p) * G21 * U2` THEN
+    REPEAT(POP_ASSUM MP_TAC) THEN CONV_TAC REAL_FIELD;
+    REPEAT(POP_ASSUM MP_TAC) THEN CONV_TAC REAL_FIELD]);;
+
+let FIN_DIG_C_NOCARRY = prove
+ (`forall p L s. prime p /\ ~(p = 2) /\ 2 * s < p /\ 2 * L < p
+           ==> fin_dig_cg p (cat_c (L * p + s)) (cat_c L * cat_c s)`,
+  REPEAT STRIP_TAC THEN
+  FIRST_ASSUM(ASSUME_TAC o MATCH_MP PRIME_IMP_NZ) THEN
+  ABBREV_TAC `l = L * p + s:num` THEN
+  SUBGOAL_THEN `l DIV p = L /\ l MOD p = s /\ (2 * l) DIV p = 2 * L /\
+                (2 * l) MOD p = 2 * s` STRIP_ASSUME_TAC THENL
+   [EXPAND_TAC "l" THEN REPEAT CONJ_TAC THENL
+     [MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `s:num`;
+      MATCH_MP_TAC MOD_UNIQ THEN EXISTS_TAC `L:num`;
+      MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `2 * s:num`;
+      MATCH_MP_TAC MOD_UNIQ THEN EXISTS_TAC `2 * L:num`] THEN
+    REWRITE_TAC[LEFT_ADD_DISTRIB; RIGHT_ADD_DISTRIB; MULT_ASSOC; MULT_CLAUSES] THEN
+    ASM_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN
+   `cat_c l = (&(binom(2 * L,L)) *
+               (&(fin_dig_c_u p (2 * l)) / &(fin_dig_c_u p l) pow 2)) / &4 pow l`
+  SUBST1_TAC THENL
+   [REWRITE_TAC[cat_c] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+    MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_DECOMP) THEN
+    MP_TAC(SPECL [`L:num`; `L:num`] BINOM_FACT) THEN
+    ASM_REWRITE_TAC[GSYM MULT_2] THEN
+    REWRITE_TAC[GSYM REAL_OF_NUM_EQ; GSYM REAL_OF_NUM_MUL] THEN
+    SUBGOAL_THEN `&p pow (2 * L) = &p pow L * &p pow L` SUBST1_TAC THENL
+     [REWRITE_TAC[MULT_2; REAL_POW_ADD]; ALL_TAC] THEN
+    MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_NZ) THEN
+    MP_TAC(SPECL [`p:num`; `L:num`] FIN_DIG_C_NZ) THEN
+    ASM_REWRITE_TAC[] THEN REPEAT STRIP_TAC THEN
+    FIRST_X_ASSUM(MP_TAC o MATCH_MP FIN_DIG_C_ALG1) THEN
+    DISCH_THEN MATCH_MP_TAC THEN ASM_REWRITE_TAC[];
+    ALL_TAC] THEN
+  MATCH_MP_TAC FIN_DIG_CG_EQ THEN
+  EXISTS_TAC `(&(binom(2 * L,L)) *
+               (&(fin_dig_c_u p (2 * l)) / &(fin_dig_c_u p l) pow 2)) / &4 pow l` THEN
+  EXISTS_TAC `(&(binom(2 * L,L)) * &(binom(2 * s,s))) / (&4 pow L * &4 pow s)` THEN
+  REPEAT CONJ_TAC THENL
+   [ALL_TAC;
+    REWRITE_TAC[];
+    REWRITE_TAC[cat_c; real_div; REAL_INV_MUL; REAL_MUL_AC]] THEN
+  MATCH_MP_TAC FIN_DIG_CG_DIV THEN ASM_REWRITE_TAC[] THEN REPEAT CONJ_TAC THENL
+   [MATCH_MP_TAC FIN_DIG_CG_MUL THEN ASM_SIMP_TAC[FIN_DIG_CG_REFL; FIN_ZP_NUM] THEN
+    MATCH_MP_TAC FIN_DIG_CG_EQ THEN
+    EXISTS_TAC `&(fin_dig_c_u p (2 * l)) / &(fin_dig_c_u p l) pow 2` THEN
+    EXISTS_TAC `&(FACT(p - 1) EXP (2 * L) * FACT(2 * s)) /
+                &(FACT(p - 1) EXP L * FACT s) pow 2` THEN
+    REPEAT CONJ_TAC THENL
+     [MATCH_MP_TAC FIN_DIG_CG_DIV THEN ASM_REWRITE_TAC[] THEN REPEAT CONJ_TAC THENL
+       [MATCH_MP_TAC FIN_DIG_CG_NUM THEN ASM_REWRITE_TAC[] THEN
+        MP_TAC(SPECL [`p:num`; `2 * l:num`] FIN_DIG_C_UCONG) THEN ASM_REWRITE_TAC[];
+        MATCH_MP_TAC FIN_DIG_UNIT_POW THEN ASM_REWRITE_TAC[] THEN
+        MATCH_MP_TAC FIN_DIG_UNIT_NUM THEN ASM_SIMP_TAC[FIN_DIG_C_U_NDIV];
+        MATCH_MP_TAC FIN_DIG_CG_POW THEN ASM_REWRITE_TAC[] THEN
+        MATCH_MP_TAC FIN_DIG_CG_NUM THEN ASM_REWRITE_TAC[] THEN
+        MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_UCONG) THEN ASM_REWRITE_TAC[]];
+      REWRITE_TAC[];
+      SUBGOAL_THEN `FACT(p - 1) EXP (2 * L) = FACT(p - 1) EXP L * FACT(p - 1) EXP L`
+      SUBST1_TAC THENL [REWRITE_TAC[MULT_2; EXP_ADD]; ALL_TAC] THEN
+      MP_TAC(SPECL [`s:num`; `s:num`] BINOM_FACT) THEN
+      REWRITE_TAC[GSYM MULT_2] THEN
+      REWRITE_TAC[GSYM REAL_OF_NUM_EQ; GSYM REAL_OF_NUM_MUL] THEN
+      DISCH_THEN(MATCH_MP_TAC o MATCH_MP FIN_DIG_C_ALG3) THEN
+      REWRITE_TAC[REAL_OF_NUM_EQ; EXP_EQ_0; FACT_NZ]];
+    REWRITE_TAC[REAL_OF_NUM_POW] THEN MATCH_MP_TAC FIN_DIG_UNIT_NUM THEN
+    ASM_SIMP_TAC[FIN_DIG_C_NDIV4];
+    REWRITE_TAC[REAL_OF_NUM_POW; REAL_OF_NUM_MUL] THEN
+    MATCH_MP_TAC FIN_DIG_CG_NUM THEN ASM_REWRITE_TAC[] THEN
+    EXPAND_TAC "l" THEN REWRITE_TAC[EXP_ADD] THEN
+    MATCH_MP_TAC CONG_MULT THEN ASM_SIMP_TAC[FIN_DIG_C_FERMAT4; CONG_REFL]]);;
+
+let FIN_DIG_C_CARRY = prove
+ (`forall p L s. prime p /\ ~(p = 2) /\ p <= 2 * s /\ s < p /\ 2 * L + 1 < p
+           ==> fin_dig_unit p (cat_c (L * p + s) / &p)`,
+  REPEAT STRIP_TAC THEN
+  FIRST_ASSUM(ASSUME_TAC o MATCH_MP PRIME_IMP_NZ) THEN
+  ABBREV_TAC `l = L * p + s:num` THEN
+  SUBGOAL_THEN `l DIV p = L /\ (2 * l) DIV p = 2 * L + 1` STRIP_ASSUME_TAC THENL
+   [EXPAND_TAC "l" THEN CONJ_TAC THENL
+     [MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `s:num`;
+      MATCH_MP_TAC DIV_UNIQ THEN EXISTS_TAC `2 * s - p:num`] THEN
+    REWRITE_TAC[LEFT_ADD_DISTRIB; RIGHT_ADD_DISTRIB; MULT_ASSOC; MULT_CLAUSES] THEN
+    ASM_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN
+   `cat_c l / &p =
+    (&(FACT(2 * L + 1)) * &(fin_dig_c_u p (2 * l))) /
+    ((&(fin_dig_c_u p l) * &(FACT L)) pow 2 * &4 pow l)`
+  SUBST1_TAC THENL
+   [REWRITE_TAC[cat_c] THEN
+    MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_DECOMP) THEN
+    ASM_REWRITE_TAC[] THEN
+    SUBGOAL_THEN `&p pow (2 * L + 1) = &p pow L * &p pow L * &p` SUBST1_TAC THENL
+     [REWRITE_TAC[MULT_2; REAL_POW_ADD; REAL_POW_1; REAL_MUL_ASSOC]; ALL_TAC] THEN
+    MP_TAC(SPECL [`p:num`; `l:num`] FIN_DIG_C_NZ) THEN
+    MP_TAC(SPECL [`p:num`; `L:num`] FIN_DIG_C_NZ) THEN
+    ASM_REWRITE_TAC[] THEN REPEAT STRIP_TAC THEN
+    FIRST_X_ASSUM(MP_TAC o MATCH_MP FIN_DIG_C_ALG4) THEN
+    DISCH_THEN MATCH_MP_TAC THEN ASM_REWRITE_TAC[];
+    ALL_TAC] THEN
+  MATCH_MP_TAC FIN_DIG_UNIT_DIV THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+   [MATCH_MP_TAC FIN_DIG_UNIT_MUL THEN ASM_REWRITE_TAC[] THEN CONJ_TAC;
+    MATCH_MP_TAC FIN_DIG_UNIT_MUL THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+     [MATCH_MP_TAC FIN_DIG_UNIT_POW THEN ASM_REWRITE_TAC[] THEN
+      MATCH_MP_TAC FIN_DIG_UNIT_MUL THEN ASM_REWRITE_TAC[] THEN CONJ_TAC;
+      REWRITE_TAC[REAL_OF_NUM_POW]]] THEN
+  MATCH_MP_TAC FIN_DIG_UNIT_NUM THEN
+  ASM_SIMP_TAC[FIN_DIG_C_U_NDIV; FIN_DIG_C_NDIV4; DIVIDES_FACT_PRIME] THEN
+  ASM_ARITH_TAC);;

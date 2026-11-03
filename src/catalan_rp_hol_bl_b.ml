@@ -1,0 +1,114 @@
+(* ========================================================================= *)
+(* rp_hol_bl_: conjunct 7 of RP_HOL_BL_STMT (|F| <= e^12 near +-i)          *)
+(* ========================================================================= *)
+
+needs "src/catalan_rp_hol_bl_a.ml";;
+
+let RP_HOL_BL_FACTOR = prove
+ (`forall x c w e. abs x < &1 /\ (c = ii \/ c = --ii) /\ norm(w - c) <= e /\
+             e <= &1 / &3
+             ==> norm((Cx(&1) - Cx x * w) / (w - Cx x)) <= &1 + &3 * e`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IMP_CONJ] THEN REPEAT DISCH_TAC THEN
+  SUBGOAL_THEN `norm(c:complex) = &1` ASSUME_TAC THENL
+   [FIRST_ASSUM(DISJ_CASES_THEN SUBST1_TAC) THEN
+    REWRITE_TAC[NORM_NEG; COMPLEX_NORM_II]; ALL_TAC] THEN
+  SUBGOAL_THEN `&1 <= norm(c - Cx x)` ASSUME_TAC THENL
+   [MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `abs(Im((c:complex) - Cx x))` THEN
+    REWRITE_TAC[COMPLEX_NORM_GE_RE_IM] THEN
+    FIRST_ASSUM(DISJ_CASES_THEN SUBST1_TAC) THEN
+    REWRITE_TAC[IM_SUB; IM_II; IM_NEG; IM_CX] THEN REAL_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN `norm(c - w) <= e` ASSUME_TAC THENL
+   [ONCE_REWRITE_TAC[NORM_SUB] THEN ASM_REWRITE_TAC[]; ALL_TAC] THEN
+  SUBGOAL_THEN `&0 <= e` ASSUME_TAC THENL
+   [MP_TAC(ISPEC `c - w:complex` NORM_POS_LE) THEN ASM_REAL_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN `norm(Cx(&1) - Cx x * w) <= norm(c - Cx x) + e`
+  ASSUME_TAC THENL
+   [MATCH_MP_TAC REAL_LE_TRANS THEN
+    EXISTS_TAC `norm(Cx(&1) - Cx x * (c:complex)) + norm(Cx x * (c - w:complex))` THEN
+    CONJ_TAC THENL
+     [SUBST1_TAC(COMPLEX_RING
+       `Cx(&1) - Cx x * w = (Cx(&1) - Cx x * c) + Cx x * (c - w)`) THEN
+      REWRITE_TAC[NORM_TRIANGLE]; ALL_TAC] THEN
+    ASM_SIMP_TAC[RP_HOL_BL_NORM_EQ; COMPLEX_NORM_MUL; COMPLEX_NORM_CX] THEN
+    MATCH_MP_TAC(REAL_ARITH `a <= e ==> s + a <= s + e`) THEN
+    MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `&1 * norm(c - w:complex)` THEN
+    CONJ_TAC THENL
+     [MATCH_MP_TAC REAL_LE_RMUL THEN REWRITE_TAC[NORM_POS_LE] THEN
+      ASM_REAL_ARITH_TAC;
+      ASM_REWRITE_TAC[REAL_MUL_LID]];
+    ALL_TAC] THEN
+  SUBGOAL_THEN `norm(c - Cx x) - e <= norm(w - Cx x)` ASSUME_TAC THENL
+   [MP_TAC(ISPECL [`w - Cx x`; `c - w:complex`] NORM_TRIANGLE) THEN
+    REWRITE_TAC[COMPLEX_RING `(w - x) + (c - w) = c - x:complex`] THEN
+    ASM_REAL_ARITH_TAC; ALL_TAC] THEN
+  ABBREV_TAC `s = norm(c - Cx x)` THEN
+  ABBREV_TAC `a = norm(Cx(&1) - Cx x * w)` THEN
+  ABBREV_TAC `b = norm(w - Cx x)` THEN
+  REWRITE_TAC[COMPLEX_NORM_DIV] THEN ASM_REWRITE_TAC[] THEN
+  SUBGOAL_THEN `&0 < b` ASSUME_TAC THENL [ASM_REAL_ARITH_TAC; ALL_TAC] THEN
+  ASM_SIMP_TAC[REAL_LE_LDIV_EQ] THEN
+  MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `s + e:real` THEN
+  ASM_REWRITE_TAC[] THEN
+  MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `(&1 + &3 * e) * (s - e:real)` THEN
+  CONJ_TAC THENL
+   [MP_TAC(SPECL [`e:real`; `&3 * s - &3 * e - &2`] REAL_LE_MUL) THEN
+    ANTS_TAC THENL [ASM_REAL_ARITH_TAC; REAL_ARITH_TAC];
+    MATCH_MP_TAC REAL_LE_LMUL THEN ASM_REAL_ARITH_TAC]);;
+
+let RP_HOL_BL_NEAR_I = prove
+ (`forall n D (x:num->real) w.
+     48 <= n /\ D < n /\ (forall i. i < n ==> abs(x i) < &1) /\
+     (norm(w - ii) <= &3 / &n \/ norm(w + ii) <= &3 / &n)
+     ==> norm(rp_hol_F n D x w) <= exp(&12)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IMP_CONJ] THEN REPEAT DISCH_TAC THEN
+  SUBGOAL_THEN `exists c. (c = ii \/ c = --ii) /\ norm(w - c) <= &3 / &n`
+  (X_CHOOSE_THEN `c:complex` (CONJUNCTS_THEN ASSUME_TAC)) THENL
+   [FIRST_X_ASSUM DISJ_CASES_TAC THENL
+     [EXISTS_TAC `ii` THEN ASM_REWRITE_TAC[];
+      EXISTS_TAC `--ii` THEN
+      ASM_REWRITE_TAC[COMPLEX_RING `w - --ii = w + ii`]];
+    ALL_TAC] THEN
+  SUBGOAL_THEN `&48 <= &n` ASSUME_TAC THENL
+   [ASM_REWRITE_TAC[REAL_OF_NUM_LE]; ALL_TAC] THEN
+  SUBGOAL_THEN `&3 / &n <= &1 / &3` ASSUME_TAC THENL
+   [ASM_SIMP_TAC[REAL_LE_LDIV_EQ; REAL_ARITH `&48 <= n ==> &0 < n`] THEN
+    ASM_REAL_ARITH_TAC; ALL_TAC] THEN
+  SUBGOAL_THEN `&n * (&3 / &n) = &3` ASSUME_TAC THENL
+   [MATCH_MP_TAC REAL_DIV_LMUL THEN ASM_REAL_ARITH_TAC; ALL_TAC] THEN
+  ABBREV_TAC `e = &3 / &n` THEN
+  SUBGOAL_THEN `&0 <= e` ASSUME_TAC THENL
+   [MP_TAC(ISPEC `w - c:complex` NORM_POS_LE) THEN ASM_REAL_ARITH_TAC;
+    ALL_TAC] THEN
+  SUBGOAL_THEN `norm(c:complex) = &1` ASSUME_TAC THENL
+   [FIRST_ASSUM(DISJ_CASES_THEN SUBST1_TAC) THEN
+    REWRITE_TAC[NORM_NEG; COMPLEX_NORM_II]; ALL_TAC] THEN
+  SUBGOAL_THEN `exp(&12) = exp(e) pow n * exp(&3 * e) pow n` SUBST1_TAC THENL
+   [REWRITE_TAC[GSYM REAL_EXP_N; GSYM REAL_EXP_ADD] THEN AP_TERM_TAC THEN
+    ASM_REWRITE_TAC[REAL_ARITH `n * &3 * e = &3 * n * e`] THEN
+    REAL_ARITH_TAC; ALL_TAC] THEN
+  REWRITE_TAC[rp_hol_F; COMPLEX_NORM_MUL; COMPLEX_NORM_POW] THEN
+  SIMP_TAC[NORM_CPRODUCT; FINITE_NUMSEG_LT] THEN
+  MATCH_MP_TAC REAL_LE_MUL2 THEN REPEAT CONJ_TAC THENL
+   [MATCH_MP_TAC REAL_POW_LE THEN REWRITE_TAC[NORM_POS_LE];
+    MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `exp(e:real) pow D` THEN
+    CONJ_TAC THENL
+     [MATCH_MP_TAC REAL_POW_LE2 THEN REWRITE_TAC[NORM_POS_LE] THEN
+      MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `&1 + e:real` THEN
+      REWRITE_TAC[REAL_EXP_LE_X] THEN
+      MP_TAC(ISPECL [`w:complex`; `c:complex`] NORM_TRIANGLE_SUB) THEN
+      ASM_REAL_ARITH_TAC;
+      MATCH_MP_TAC REAL_POW_MONO THEN
+      ASM_SIMP_TAC[LT_IMP_LE] THEN
+      MP_TAC(SPEC `e:real` REAL_EXP_LE_X) THEN ASM_REAL_ARITH_TAC];
+    MATCH_MP_TAC PRODUCT_POS_LE THEN REWRITE_TAC[FINITE_NUMSEG_LT; NORM_POS_LE];
+    MP_TAC(ISPECL [`exp(&3 * e)`; `{i:num | i < n}`] PRODUCT_CONST) THEN
+    REWRITE_TAC[FINITE_NUMSEG_LT; CARD_NUMSEG_LT] THEN
+    DISCH_THEN(SUBST1_TAC o SYM) THEN
+    MATCH_MP_TAC PRODUCT_LE THEN
+    REWRITE_TAC[FINITE_NUMSEG_LT; NORM_POS_LE; IN_ELIM_THM] THEN
+    X_GEN_TAC `i:num` THEN DISCH_TAC THEN
+    MATCH_MP_TAC REAL_LE_TRANS THEN EXISTS_TAC `&1 + &3 * e:real` THEN
+    REWRITE_TAC[REAL_EXP_LE_X] THEN MATCH_MP_TAC RP_HOL_BL_FACTOR THEN
+    EXISTS_TAC `c:complex` THEN ASM_SIMP_TAC[]]);;

@@ -1,0 +1,8 @@
+# Intermediate files from development (AI agents' scratch work and logs)
+scratch/
+doc/
+
+# Python and other generated files
+__pycache__/
+*.pyc
+*.log
