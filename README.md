@@ -100,7 +100,11 @@ loaded together without name clashes.
 ## Building
 
 The development uses [HOL Light](https://github.com/jrh13/hol-light), and was tested at commit
-`31fe213`. It needs `100/pnt.ml` (and hence `Multivariate/cauchy.ml`) and
+`31fe213`.
+The list of working HOL Light versions is available at
+[the HOL Light benchmark dashboard](https://hol-light.github.io/benchmark-results/index.html).
+
+It needs `100/pnt.ml` (and hence `Multivariate/cauchy.ml`) and
 `Library/ring_det.ml` from HOL Light; `make.ml` loads them. Start HOL Light with its `hol.sh` in
 the root of this repository (HOL Light's load path is the current directory first, then the HOL
 Light directory), then:
